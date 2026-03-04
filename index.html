@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conservación de Momento Angular</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #050810;
+    color: #e0f0ff;
+    font-family: 'Share Tech Mono', monospace;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+
+  .bg-grid {
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,200,100,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,200,100,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  header {
+    text-align: center;
+    padding: 20px 20px 8px;
+    position: relative; z-index: 10;
+  }
+  header h1 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(0.9rem, 2.5vw, 1.5rem);
+    font-weight: 900; letter-spacing: 0.15em;
+    color: #00ff88;
+    text-shadow: 0 0 20px #00ff8880, 0 0 40px #00ff8840;
+  }
+  header p {
+    font-size: 0.72rem; color: #4db88a;
+    margin-top: 4px; letter-spacing: 0.1em;
+  }
+
+  .main-layout {
+    display: flex; gap: 18px;
+    padding: 14px 22px 22px;
+    max-width: 1180px; margin: 0 auto;
+    align-items: flex-start;
+  }
+
+  .canvas-wrap {
+    flex: 1 1 auto;
+    display: flex; flex-direction: column;
+    align-items: center; gap: 14px; min-width: 0;
+  }
+
+  canvas#sim {
+    border: 1px solid #00ff4440;
+    border-radius: 14px;
+    background: #06100a;
+    box-shadow: 0 0 50px #00ff4418, inset 0 0 60px #00140a;
+    max-width: 100%;
+  }
+
+  .arm-ctrl-wrap {
+    width: 100%; max-width: 520px;
+    background: #0b1a14;
+    border: 1px solid #00ff4430;
+    border-radius: 10px;
+    padding: 14px 18px;
+    box-shadow: 0 0 18px #00ff2210;
+  }
+  .arm-ctrl-label {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.62rem; color: #00ff88;
+    letter-spacing: 0.2em; text-align: center;
+    text-transform: uppercase; margin-bottom: 10px;
+  }
+  .arm-slider-row {
+    display: flex; align-items: center; gap: 12px;
+  }
+  .arm-icon { font-size: 1.1rem; }
+  input#sl-arm {
+    flex: 1; accent-color: #00ff88; cursor: pointer;
+    height: 8px;
+  }
+  .arm-val {
+    font-size: 0.8rem; color: #00ff88;
+    font-family: 'Orbitron', sans-serif;
+    min-width: 56px; text-align: right;
+  }
+  .arm-hints {
+    display: flex; justify-content: space-between;
+    font-size: 0.58rem; color: #3a7a5a;
+    padding: 6px 4px 0;
+  }
+
+  /* Side panel */
+  .panel {
+    flex: 0 0 252px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .card {
+    background: #0b1a14;
+    border: 1px solid #00ff4430;
+    border-radius: 10px; padding: 13px 15px;
+    box-shadow: 0 0 18px #00ff2210;
+  }
+  .card h3 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.62rem; letter-spacing: 0.2em;
+    color: #00ff88; margin-bottom: 11px;
+    text-transform: uppercase;
+  }
+
+  .gauge-row {
+    display: flex; align-items: center;
+    gap: 8px; margin-bottom: 9px;
+  }
+  .gauge-label { font-size: 0.62rem; color: #6be0a8; width: 68px; flex-shrink: 0; }
+  .gauge-bar {
+    flex: 1; height: 7px; background: #0d2018;
+    border-radius: 4px; overflow: hidden;
+    border: 1px solid #00ff4420;
+  }
+  .gauge-fill { height: 100%; border-radius: 4px; transition: width 0.12s ease; }
+  .gauge-val { font-size: 0.62rem; color: #a0ffd0; width: 58px; text-align: right; flex-shrink: 0; }
+
+  .ctrl-row {
+    display: flex; flex-direction: column; gap: 3px; margin-bottom: 9px;
+  }
+  .ctrl-row label {
+    font-size: 0.6rem; color: #6be0a8;
+    display: flex; justify-content: space-between;
+  }
+  .ctrl-row label span { color: #a0ffd0; }
+  input[type=range] { width: 100%; accent-color: #00ff88; cursor: pointer; height: 4px; }
+
+  .btn-row { display: flex; gap: 8px; margin-top: 4px; }
+  button {
+    flex: 1; padding: 8px 4px;
+    border: 1px solid #00ff4460; border-radius: 6px;
+    background: #0d2018; color: #00ff88;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.58rem; letter-spacing: 0.1em;
+    cursor: pointer; transition: background 0.2s, box-shadow 0.2s;
+    text-transform: uppercase;
+  }
+  button:hover { background: #00ff2220; box-shadow: 0 0 12px #00ff4440; }
+  button.active { background: #00ff4430; box-shadow: 0 0 16px #00ff4460; }
+
+  .info-text { font-size: 0.62rem; color: #4db88a; line-height: 1.65; }
+  .info-text strong { color: #00ff88; }
+
+  .formula {
+    background: #050e08; border: 1px solid #00ff4420;
+    border-radius: 6px; padding: 7px 10px;
+    font-size: 0.68rem; color: #00ff88;
+    text-align: center; letter-spacing: 0.05em; margin-top: 5px;
+  }
+
+  canvas#chart {
+    border-radius: 6px; background: #050e08;
+    border: 1px solid #00ff4420; width: 100%; height: 76px;
+  }
+
+  .badge {
+    display: flex; align-items: center; justify-content: center;
+    gap: 6px; padding: 6px 10px;
+    border-radius: 6px; font-size: 0.62rem;
+    letter-spacing: 0.05em; transition: all 0.3s; margin-top: 4px;
+  }
+  .badge.conserved {
+    background: #00ff4415; border: 1px solid #00ff4460; color: #00ff88;
+  }
+  .badge.warning {
+    background: #ff880015; border: 1px solid #ff880060; color: #ffaa44;
+  }
+
+  @media (max-width: 700px) {
+    .main-layout { flex-direction: column; padding: 8px; }
+    .panel { flex: none; width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+
+<header>
+  <h1>⚙ CONSERVACIÓN DE MOMENTO ANGULAR</h1>
+  <p>L = I · ω = constante &nbsp;|&nbsp; cambia la forma → cambia ω</p>
+</header>
+
+<div class="main-layout">
+
+  <div class="canvas-wrap">
+    <canvas id="sim" width="520" height="520"></canvas>
+
+    <div class="arm-ctrl-wrap">
+      <div class="arm-ctrl-label">↔ Longitud de los brazos</div>
+      <div class="arm-slider-row">
+        <span class="arm-icon" title="Brazos recogidos">🔵</span>
+        <input type="range" id="sl-arm" min="0" max="1" step="0.01" value="0.35">
+        <span class="arm-icon" title="Brazos extendidos">🟢</span>
+      </div>
+      <div class="arm-hints">
+        <span>◀ Recogidos → I↓ → ω↑</span>
+        <span id="arm-val-lbl">r = 0.27 m</span>
+        <span>Extendidos → I↑ → ω↓ ▶</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+
+    <div class="card">
+      <h3>📊 Tiempo real</h3>
+
+      <div class="gauge-row">
+        <div class="gauge-label">Vel. angular</div>
+        <div class="gauge-bar"><div class="gauge-fill" id="g-omega" style="background:linear-gradient(90deg,#00cc66,#00ff88);width:50%"></div></div>
+        <div class="gauge-val" id="v-omega">—</div>
+      </div>
+
+      <div class="gauge-row">
+        <div class="gauge-label">Mom. inercia</div>
+        <div class="gauge-bar"><div class="gauge-fill" id="g-inertia" style="background:linear-gradient(90deg,#0088ff,#00ccff);width:30%"></div></div>
+        <div class="gauge-val" id="v-inertia">—</div>
+      </div>
+
+      <div class="gauge-row">
+        <div class="gauge-label">Mom. angular</div>
+        <div class="gauge-bar"><div class="gauge-fill" id="g-L" style="background:linear-gradient(90deg,#ffaa00,#ffdd44);width:50%"></div></div>
+        <div class="gauge-val" id="v-L">—</div>
+      </div>
+
+      <div class="gauge-row">
+        <div class="gauge-label">Energía cin.</div>
+        <div class="gauge-bar"><div class="gauge-fill" id="g-E" style="background:linear-gradient(90deg,#ff4488,#ff88bb);width:50%"></div></div>
+        <div class="gauge-val" id="v-E">—</div>
+      </div>
+
+      <div class="badge conserved" id="badge">
+        <span>●</span><span>L CONSERVADO ✓</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>🎛 Configuración</h3>
+
+      <div class="ctrl-row">
+        <label>Vel. inicial &nbsp;<span id="lv-init">8 rad/s</span></label>
+        <input type="range" id="sl-init" min="1" max="20" value="8" step="0.5">
+      </div>
+
+      <div class="ctrl-row">
+        <label>Fricción &nbsp;<span id="lv-fric">0.015</span></label>
+        <input type="range" id="sl-fric" min="0" max="0.08" value="0.015" step="0.005">
+      </div>
+
+      <div class="btn-row">
+        <button id="btn-play" class="active">⏸ PAUSE</button>
+        <button id="btn-reset">↺ RESET</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>📈 ω y L vs tiempo</h3>
+      <canvas id="chart" width="222" height="76"></canvas>
+      <div style="display:flex;justify-content:space-between;font-size:0.55rem;color:#3a7a5a;margin-top:3px;">
+        <span style="color:#00ff88">— ω (vel. angular)</span>
+        <span style="color:#ffdd44">— L (mom. angular)</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>📚 Principio físico</h3>
+      <div class="info-text">
+        Al <strong>extender</strong> brazos:<br>
+        &nbsp; r↑ → I↑ → ω↓ (más lento)<br><br>
+        Al <strong>contraer</strong> brazos:<br>
+        &nbsp; r↓ → I↓ → ω↑ (más rápido)<br><br>
+        Sin torque externo, <strong>L</strong> no cambia.<br>
+        Como un patinador artístico.
+      </div>
+      <div class="formula">I · ω = cte.</div>
+      <div class="formula" style="font-size:0.6rem;color:#4db88a;margin-top:4px;">
+        I = ½MR² + 2·m·r²
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ============================================================
+// CONSTANTS
+// ============================================================
+const CX = 260, CY = 255;
+const DISK_R   = 82;      // px — visual disk radius
+const ARM_MASS = 0.8;     // kg — mass per arm (fixed)
+const DISK_I0  = 0.5;     // kg·m² — disk moment (fixed)
+const PX_TO_M  = 0.005;   // scale: 1 px = 0.005 m
+const MAX_ARM_PX = 130;
+const MIN_ARM_PX = 18;
+
+// ============================================================
+// STATE
+// ============================================================
+const S = {
+  running: true,
+  angle: 0,
+  omega: 8,
+  L: 0,
+  armT: 0.35,        // [0..1] slider value
+  friction: 0.015,
+  initOmega: 8,
+  lastTime: null,
+  omegaHist: [],
+  lHist: [],
+};
+
+// ============================================================
+// PHYSICS
+// ============================================================
+function armPx(t)   { return MIN_ARM_PX + t * (MAX_ARM_PX - MIN_ARM_PX); }
+function armMeter(t){ return armPx(t) * PX_TO_M; }
+function inertia(t) { return DISK_I0 + 2 * ARM_MASS * armMeter(t) ** 2; }
+
+function initL() {
+  S.L = inertia(S.armT) * S.omega;
+}
+
+// ============================================================
+// CANVASES
+// ============================================================
+const canvas = document.getElementById('sim');
+const ctx    = canvas.getContext('2d');
+const cc     = document.getElementById('chart');
+const cctx   = cc.getContext('2d');
+
+// ============================================================
+// DRAW TOP
+// ============================================================
+function drawTop(angle, armT) {
+  ctx.save();
+  ctx.translate(CX, CY);
+
+  const R    = DISK_R;
+  const aLen = armPx(armT);
+
+  // --- Ground shadow ---
+  ctx.save();
+  ctx.translate(0, R + 10);
+  const sg = ctx.createRadialGradient(0,4,2, 0,10,R*0.9);
+  sg.addColorStop(0, 'rgba(0,255,100,0.20)');
+  sg.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.beginPath();
+  ctx.ellipse(0,0, R*0.85, 16, 0,0,Math.PI*2);
+  ctx.fillStyle = sg; ctx.fill();
+  ctx.restore();
+
+  // === DISK (rotates with angle) ===
+  ctx.save();
+  ctx.rotate(angle);
+
+  // Chrome ring
+  const chromG = ctx.createRadialGradient(0,0,R*0.55, 0,0,R);
+  chromG.addColorStop(0,'#1a2a20');
+  chromG.addColorStop(0.72,'#253530');
+  chromG.addColorStop(1,'#8899aa');
+  ctx.beginPath(); ctx.arc(0,0,R,0,Math.PI*2);
+  ctx.fillStyle = chromG;
+  ctx.shadowColor='#00ff44'; ctx.shadowBlur=28; ctx.fill();
+  ctx.beginPath(); ctx.arc(0,0,R,0,Math.PI*2);
+  ctx.strokeStyle='#aabbcc'; ctx.lineWidth=2.5; ctx.stroke();
+
+  // Green holographic fill
+  const gR = R*0.82;
+  const greenG = ctx.createRadialGradient(-12,-12,2, 0,0,gR);
+  greenG.addColorStop(0,'#aaffcc');
+  greenG.addColorStop(0.25,'#00ee66');
+  greenG.addColorStop(0.65,'#007733');
+  greenG.addColorStop(1,'#002211');
+  ctx.beginPath(); ctx.arc(0,0,gR,0,Math.PI*2);
+  ctx.fillStyle = greenG; ctx.shadowBlur=0; ctx.fill();
+
+  // Diamond texture
+  ctx.globalAlpha=0.22;
+  const step = R*0.19;
+  for (let i=-4;i<=4;i++) for (let j=-4;j<=4;j++) {
+    const dx=i*step, dy=j*step;
+    if (dx*dx+dy*dy < (gR*0.93)**2) {
+      ctx.beginPath();
+      const s=6.5;
+      ctx.moveTo(dx,dy-s); ctx.lineTo(dx+s,dy);
+      ctx.lineTo(dx,dy+s); ctx.lineTo(dx-s,dy);
+      ctx.closePath();
+      ctx.fillStyle = (i+j)%2===0 ? '#00ff88' : '#003a18';
+      ctx.fill();
+    }
+  }
+  ctx.globalAlpha=1;
+
+  // 3 dark ribs
+  for (let i=0;i<3;i++) {
+    ctx.save(); ctx.rotate(i*Math.PI*2/3);
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,-gR);
+    ctx.strokeStyle='#0a1a0d'; ctx.lineWidth=7; ctx.stroke();
+    ctx.restore();
+  }
+
+  // Claw blades
+  for (let i=0;i<3;i++) {
+    ctx.save(); ctx.rotate(i*Math.PI*2/3+Math.PI/6);
+    ctx.beginPath();
+    ctx.moveTo(R*0.84,-9);
+    ctx.bezierCurveTo(R*1.14,-20, R*1.2,2, R*1.05,14);
+    ctx.bezierCurveTo(R*0.94,20, R*0.78,10, R*0.84,-9);
+    ctx.fillStyle='#0e1a10';
+    ctx.shadowColor='#000'; ctx.shadowBlur=6; ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(R*0.92,0);
+    ctx.bezierCurveTo(R*1.1,-5, R*1.1,8, R*0.98,12);
+    ctx.strokeStyle='#c9a200'; ctx.lineWidth=2; ctx.shadowBlur=0; ctx.stroke();
+    ctx.restore();
+  }
+
+  // Center hub
+  const hubG = ctx.createRadialGradient(-5,-5,1, 0,0,21);
+  hubG.addColorStop(0,'#666'); hubG.addColorStop(1,'#111');
+  ctx.beginPath(); ctx.arc(0,0,21,0,Math.PI*2);
+  ctx.fillStyle=hubG; ctx.fill();
+  ctx.beginPath(); ctx.arc(0,0,21,0,Math.PI*2);
+  ctx.strokeStyle='#2a2a2a'; ctx.lineWidth=2; ctx.stroke();
+  ctx.beginPath(); ctx.arc(0,0,7,0,Math.PI*2);
+  ctx.fillStyle='#040a06'; ctx.fill();
+
+  // Spin rings
+  const sa = Math.min(S.omega/18, 0.55);
+  for (let ri=1;ri<=3;ri++){
+    ctx.beginPath(); ctx.arc(0,0, R*0.28*ri,0,Math.PI*2);
+    ctx.strokeStyle=`rgba(0,255,100,${sa/ri})`;
+    ctx.lineWidth=1; ctx.stroke();
+  }
+
+  ctx.restore(); // end disk rotation
+
+  // === ARMS — world space, opposite sides ===
+  const ARM_ANGLES = [angle + Math.PI*0.5, angle + Math.PI*1.5];
+
+  for (let i=0; i<2; i++) {
+    const ga  = ARM_ANGLES[i];
+    const bx  = Math.cos(ga) * aLen;
+    const by  = Math.sin(ga) * aLen;
+    const pivX = Math.cos(ga) * R*0.12;
+    const pivY = Math.sin(ga) * R*0.12;
+
+    // Rod
+    ctx.save();
+    ctx.translate(pivX, pivY);
+    ctx.rotate(ga);
+    const rodLen = aLen - 10;
+    const rodG = ctx.createLinearGradient(0,0,0,rodLen);
+    rodG.addColorStop(0,'#1acc66'); rodG.addColorStop(1,'#004d22');
+    ctx.beginPath();
+    ctx.moveTo(-5,0); ctx.lineTo(-5,rodLen);
+    ctx.lineTo(5,rodLen); ctx.lineTo(5,0);
+    ctx.fillStyle=rodG;
+    ctx.shadowColor='#00ff44'; ctx.shadowBlur=12; ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(-3.5,0); ctx.lineTo(-3.5,rodLen);
+    ctx.strokeStyle='rgba(100,255,150,0.35)';
+    ctx.lineWidth=1.5; ctx.stroke();
+    ctx.restore();
+
+    // Mass ball — size grows with arm length to show more mass at edge
+    const bR = 12 + armT * 5;
+    const bG = ctx.createRadialGradient(bx-4,by-4,1, bx,by,bR);
+    bG.addColorStop(0,'#aaffcc');
+    bG.addColorStop(0.45,'#00cc55');
+    bG.addColorStop(1,'#002a10');
+    ctx.beginPath(); ctx.arc(bx,by,bR,0,Math.PI*2);
+    ctx.fillStyle=bG;
+    ctx.shadowColor='#00ff88'; ctx.shadowBlur=22; ctx.fill();
+    ctx.beginPath(); ctx.arc(bx,by,bR,0,Math.PI*2);
+    ctx.strokeStyle='#00ff88'; ctx.lineWidth=1.5; ctx.stroke();
+    ctx.shadowBlur=0;
+
+    // Velocity arrow (tangential)
+    const vMag = Math.min(S.omega * aLen * 0.018, 40);
+    if (vMag > 2) {
+      const ta = ga + Math.PI/2;
+      const vx = Math.cos(ta)*vMag, vy = Math.sin(ta)*vMag;
+      ctx.save();
+      ctx.strokeStyle='#ffdd00'; ctx.lineWidth=2.2;
+      ctx.shadowColor='#ffdd00'; ctx.shadowBlur=8;
+      ctx.globalAlpha=0.8;
+      ctx.beginPath();
+      ctx.moveTo(bx,by); ctx.lineTo(bx+vx,by+vy);
+      const ha=Math.atan2(vy,vx);
+      ctx.lineTo(bx+vx-9*Math.cos(ha-0.4),by+vy-9*Math.sin(ha-0.4));
+      ctx.moveTo(bx+vx,by+vy);
+      ctx.lineTo(bx+vx-9*Math.cos(ha+0.4),by+vy-9*Math.sin(ha+0.4));
+      ctx.stroke(); ctx.restore();
+    }
+
+    // r annotation
+    ctx.save();
+    ctx.strokeStyle='rgba(0,200,255,0.28)';
+    ctx.lineWidth=1; ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(bx,by); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='rgba(0,200,255,0.65)';
+    ctx.font='bold 11px monospace';
+    ctx.fillText('r', bx*0.5+7, by*0.5-5);
+    ctx.restore();
+  }
+
+  // Tip
+  ctx.save();
+  ctx.translate(0, R+4);
+  ctx.beginPath();
+  ctx.moveTo(-4,0); ctx.lineTo(4,0); ctx.lineTo(0,9);
+  ctx.closePath(); ctx.fillStyle='#2a3a2a'; ctx.fill();
+  ctx.restore();
+
+  ctx.restore();
+}
+
+// ============================================================
+// DRAW CHART
+// ============================================================
+function drawChart() {
+  const w=cc.width, h=cc.height;
+  cctx.clearRect(0,0,w,h);
+  cctx.fillStyle='#050e08'; cctx.fillRect(0,0,w,h);
+  const oH=S.omegaHist, lH=S.lHist;
+  if (oH.length<2) return;
+
+  cctx.strokeStyle='#002210'; cctx.lineWidth=1;
+  for (let i=1;i<4;i++){
+    const y=h*i/4;
+    cctx.beginPath(); cctx.moveTo(0,y); cctx.lineTo(w,y); cctx.stroke();
+  }
+
+  const maxO=25, maxL=inertia(1)*25;
+
+  cctx.beginPath();
+  for (let i=0;i<oH.length;i++){
+    const x=(i/(oH.length-1))*w;
+    const y=h-(Math.min(oH[i],maxO)/maxO)*h;
+    i===0?cctx.moveTo(x,y):cctx.lineTo(x,y);
+  }
+  cctx.strokeStyle='#00ff88'; cctx.lineWidth=2;
+  cctx.shadowColor='#00ff88'; cctx.shadowBlur=5; cctx.stroke();
+
+  cctx.beginPath();
+  for (let i=0;i<lH.length;i++){
+    const x=(i/(lH.length-1))*w;
+    const y=h-(Math.min(lH[i],maxL)/maxL)*h;
+    i===0?cctx.moveTo(x,y):cctx.lineTo(x,y);
+  }
+  cctx.strokeStyle='#ffdd44'; cctx.lineWidth=1.5;
+  cctx.shadowColor='#ffdd44'; cctx.shadowBlur=4; cctx.stroke();
+  cctx.shadowBlur=0;
+}
+
+// ============================================================
+// UPDATE HUD
+// ============================================================
+function updateHUD() {
+  const I=inertia(S.armT);
+  const omega=S.omega;
+  const L=I*omega;
+  const E=0.5*I*omega**2;
+
+  const maxI=inertia(1), maxO=25;
+  const maxL=maxI*maxO, maxE=0.5*maxI*maxO**2;
+
+  document.getElementById('g-omega').style.width=Math.min(omega/maxO*100,100)+'%';
+  document.getElementById('v-omega').textContent=omega.toFixed(2)+' r/s';
+
+  document.getElementById('g-inertia').style.width=Math.min(I/maxI*100,100)+'%';
+  document.getElementById('v-inertia').textContent=I.toFixed(3);
+
+  document.getElementById('g-L').style.width=Math.min(Math.abs(L)/maxL*100,100)+'%';
+  document.getElementById('v-L').textContent=L.toFixed(3);
+
+  document.getElementById('g-E').style.width=Math.min(E/maxE*100,100)+'%';
+  document.getElementById('v-E').textContent=E.toFixed(2)+' J';
+
+  const drift=Math.abs(L-S.L)/(S.L+0.0001);
+  const badge=document.getElementById('badge');
+  if (drift<0.06){
+    badge.className='badge conserved';
+    badge.innerHTML='<span>●</span><span>L CONSERVADO ✓</span>';
+  } else {
+    badge.className='badge warning';
+    badge.innerHTML='<span>●</span><span>L derivando (fricción)</span>';
+  }
+
+  // arm length label
+  const rM = armMeter(S.armT).toFixed(3);
+  document.getElementById('arm-val-lbl').textContent='r = '+rM+' m';
+}
+
+// ============================================================
+// MAIN LOOP
+// ============================================================
+function loop(ts) {
+  if (S.lastTime===null) S.lastTime=ts;
+  const dt=Math.min((ts-S.lastTime)/1000, 0.05);
+  S.lastTime=ts;
+
+  if (S.running) {
+    const I=inertia(S.armT);
+    S.omega = S.L / I;
+    // friction slowly dissipates L
+    S.L    *= Math.pow(1-S.friction, dt*60);
+    S.omega = S.L / I;
+    S.angle += S.omega * dt;
+
+    S.omegaHist.push(S.omega);
+    S.lHist.push(S.L);
+    if (S.omegaHist.length>240){ S.omegaHist.shift(); S.lHist.shift(); }
+  }
+
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  drawTop(S.angle, S.armT);
+  updateHUD();
+  drawChart();
+
+  requestAnimationFrame(loop);
+}
+
+// ============================================================
+// CONTROLS
+// ============================================================
+document.getElementById('sl-arm').addEventListener('input', function(){
+  S.armT = parseFloat(this.value);
+  // L conserved → omega adjusts automatically next frame
+});
+
+document.getElementById('sl-init').addEventListener('input', function(){
+  document.getElementById('lv-init').textContent=this.value+' rad/s';
+  S.initOmega=parseFloat(this.value); resetSim();
+});
+document.getElementById('sl-fric').addEventListener('input', function(){
+  document.getElementById('lv-fric').textContent=parseFloat(this.value).toFixed(3);
+  S.friction=parseFloat(this.value);
+});
+
+function resetSim(){
+  S.angle=0; S.omega=S.initOmega;
+  S.armT=0.35;
+  document.getElementById('sl-arm').value=0.35;
+  S.omegaHist=[]; S.lHist=[];
+  S.lastTime=null;
+  initL();
+}
+
+document.getElementById('btn-play').addEventListener('click', function(){
+  S.running=!S.running;
+  this.textContent=S.running?'⏸ PAUSE':'▶ PLAY';
+  this.classList.toggle('active',S.running);
+});
+document.getElementById('btn-reset').addEventListener('click', ()=>{
+  resetSim(); S.running=true;
+  document.getElementById('btn-play').textContent='⏸ PAUSE';
+  document.getElementById('btn-play').classList.add('active');
+});
+
+// ============================================================
+// INIT
+// ============================================================
+initL();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
