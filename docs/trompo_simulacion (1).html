@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trompo eléctrico: simulación y análisis</title>
+<style>
+  :root {
+    --bg: #f4efe4;
+    --ink: #17201e;
+    --muted: #64716c;
+    --line: #d8cfbd;
+    --panel: #fffaf0;
+    --panel-2: #f8f1e5;
+    --green: #147a63;
+    --green-2: #1ba783;
+    --amber: #c27b21;
+    --red: #b94d42;
+    --blue: #2d6d9f;
+    --dark: #101615;
+    --shadow: 0 18px 36px rgba(25, 21, 15, 0.12);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    color: var(--ink);
+    font-family: Inter, "Segoe UI", Arial, sans-serif;
+    background:
+      linear-gradient(90deg, rgba(20, 122, 99, 0.06) 1px, transparent 1px),
+      linear-gradient(rgba(20, 122, 99, 0.05) 1px, transparent 1px),
+      var(--bg);
+    background-size: 38px 38px;
+  }
+
+  header {
+    max-width: 1220px;
+    margin: 0 auto;
+    padding: 26px 22px 10px;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(1.55rem, 3.4vw, 2.8rem);
+    line-height: 1;
+    letter-spacing: 0;
+  }
+
+  header p {
+    max-width: 850px;
+    margin: 10px 0 0;
+    color: var(--muted);
+    line-height: 1.45;
+  }
+
+  .tabs {
+    max-width: 1220px;
+    margin: 0 auto;
+    padding: 8px 22px 0;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .tab-btn,
+  button {
+    min-height: 40px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #efe5d4;
+    color: var(--ink);
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 140ms ease, box-shadow 140ms ease, background 140ms ease;
+  }
+
+  button:hover,
+  .tab-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 16px rgba(20, 122, 99, 0.14);
+  }
+
+  .tab-btn {
+    padding: 0 16px;
+  }
+
+  .tab-btn.active,
+  button.primary {
+    background: var(--green);
+    border-color: var(--green);
+    color: #fff;
+  }
+
+  .page {
+    display: none;
+    max-width: 1220px;
+    margin: 0 auto;
+    padding: 12px 22px 28px;
+  }
+
+  .page.active { display: block; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(520px, 1fr) 370px;
+    gap: 18px;
+    align-items: start;
+  }
+
+  .stage,
+  .card {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(255, 250, 240, 0.95);
+    box-shadow: var(--shadow);
+  }
+
+  .stage { padding: 14px; }
+  .card { padding: 14px; }
+
+  .card h2 {
+    margin: 0 0 12px;
+    font-size: 0.82rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #32413d;
+  }
+
+  .chart-wrap,
+  .sim-wrap {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--panel);
+    overflow: hidden;
+  }
+
+  .sim-wrap { background: var(--dark); }
+
+  canvas {
+    display: block;
+    width: 100%;
+  }
+
+  #data-chart { height: 420px; }
+  #sim-canvas { height: 520px; }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin: 10px 2px 0;
+    color: var(--muted);
+    font-size: 0.86rem;
+  }
+
+  .legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .swatch {
+    width: 24px;
+    height: 3px;
+    border-radius: 2px;
+  }
+
+  .side {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .input-grid {
+    display: grid;
+    gap: 8px;
+  }
+
+  .input-row {
+    display: grid;
+    grid-template-columns: 90px repeat(3, 1fr);
+    gap: 8px;
+    align-items: center;
+  }
+
+  .input-row.header {
+    color: var(--muted);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .input-row label {
+    color: var(--muted);
+    font-size: 0.88rem;
+  }
+
+  input[type="number"] {
+    width: 100%;
+    min-height: 38px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #fffdf7;
+    color: var(--ink);
+    padding: 6px 8px;
+    font: 0.92rem "Segoe UI", Arial, sans-serif;
+  }
+
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--green);
+  }
+
+  input:focus {
+    outline: 2px solid rgba(20, 122, 99, 0.25);
+    border-color: var(--green);
+  }
+
+  .button-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .result {
+    border-left: 4px solid var(--green);
+    background: var(--panel-2);
+    padding: 12px;
+    border-radius: 0 6px 6px 0;
+  }
+
+  .result strong {
+    display: block;
+    font-size: 1.14rem;
+    margin-bottom: 6px;
+  }
+
+  .result p {
+    margin: 0;
+    color: #3d4945;
+    line-height: 1.45;
+  }
+
+  .result.warning { border-left-color: var(--amber); }
+  .result.bad { border-left-color: var(--red); }
+
+  .metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .metric {
+    min-height: 72px;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #fffdf7;
+  }
+
+  .metric span {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--muted);
+    font-size: 0.75rem;
+  }
+
+  .metric strong {
+    display: block;
+    font-size: 1.02rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .summary-table {
+    margin-top: 12px;
+    overflow: auto;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+  }
+
+  table {
+    width: 100%;
+    min-width: 680px;
+    border-collapse: collapse;
+    background: #fffdf7;
+  }
+
+  th,
+  td {
+    padding: 9px 10px;
+    border-bottom: 1px solid #e8decd;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  th:first-child,
+  td:first-child { text-align: left; }
+
+  th {
+    color: #35443f;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: #f5eddf;
+  }
+
+  tr:last-child td { border-bottom: 0; }
+
+  .status-line,
+  .note {
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 0.86rem;
+    line-height: 1.4;
+  }
+
+  .control {
+    margin-top: 12px;
+  }
+
+  .control label {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 0.88rem;
+  }
+
+  .segmented {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .segmented button.active {
+    background: var(--green);
+    border-color: var(--green);
+    color: #fff;
+  }
+
+  .eq {
+    margin-top: 8px;
+    padding: 9px 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #fffdf7;
+    color: #34413e;
+    font-family: "Cascadia Mono", Consolas, monospace;
+    font-size: 0.86rem;
+  }
+
+  @media (max-width: 980px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 660px) {
+    header { padding: 22px 14px 8px; }
+    .tabs { padding: 8px 14px 0; }
+    .page { padding: 8px 14px 20px; }
+    .metrics,
+    .button-row,
+    .segmented { grid-template-columns: 1fr; }
+    .input-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Trompo eléctrico: simulación y análisis</h1>
+  <p>Usa la simulación ideal para comparar comportamientos del motor y el analizador para graficar tus RPM experimentales. Masa del trompo sin piezas: 33 g.</p>
+</header>
+
+<nav class="tabs" aria-label="Secciones">
+  <button class="tab-btn active" data-page="analysis-page" type="button">Análisis experimental</button>
+  <button class="tab-btn" data-page="simulation-page" type="button">Simulación ideal</button>
+</nav>
+
+<section id="analysis-page" class="page active">
+  <div class="layout">
+    <section class="stage" aria-label="Gráfica de datos experimentales">
+      <div class="chart-wrap">
+        <canvas id="data-chart" width="820" height="420"></canvas>
+      </div>
+      <div class="legend">
+        <span><i class="swatch" style="background: var(--green)"></i>RPM promedio</span>
+        <span><i class="swatch" style="background: var(--amber)"></i>Dispersión entre tomas</span>
+        <span><i class="swatch" style="background: var(--blue)"></i>Referencia sin masa</span>
+      </div>
+      <div class="summary-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Masa añadida</th>
+              <th>Tomas</th>
+              <th>RPM prom.</th>
+              <th>Desv.</th>
+              <th>Cambio</th>
+              <th>Dispersión</th>
+            </tr>
+          </thead>
+          <tbody id="summary-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <aside class="side">
+      <section class="card">
+        <h2>Coloca tus datos aquí</h2>
+        <div class="input-grid">
+          <div class="input-row header">
+            <span>Masa añadida</span>
+            <span>RPM toma 1</span>
+            <span>RPM toma 2</span>
+            <span>RPM toma 3</span>
+          </div>
+          <div class="input-row">
+            <label for="mass-0">Sin masa</label>
+            <input id="mass-0-a" type="number" value="842.6" step="0.1">
+            <input id="mass-0-b" type="number" value="850.9" step="0.1">
+            <input id="mass-0-c" type="number" value="858.4" step="0.1">
+          </div>
+          <div class="input-row">
+            <label for="mass-4-a">4 g total</label>
+            <input id="mass-4-a" type="number" value="866.2" step="0.1">
+            <input id="mass-4-b" type="number" value="872.8" step="0.1">
+            <input id="mass-4-c" type="number" value="879.5" step="0.1">
+          </div>
+          <div class="input-row">
+            <label for="mass-8-a">8 g total</label>
+            <input id="mass-8-a" type="number" value="793.5" step="0.1">
+            <input id="mass-8-b" type="number" value="807.4" step="0.1">
+            <input id="mass-8-c" type="number" value="822.6" step="0.1">
+          </div>
+          <div class="input-row">
+            <label for="mass-12-a">12 g total</label>
+            <input id="mass-12-a" type="number" value="889.8" step="0.1">
+            <input id="mass-12-b" type="number" value="904.7" step="0.1">
+            <input id="mass-12-c" type="number" value="921.3" step="0.1">
+          </div>
+        </div>
+
+        <div class="note">Cada fila corresponde a la masa total añadida: sin masa, 4 g = 2 + 2, 8 g = 4 + 4 y 12 g = 6 + 6. Las tres columnas son las RPM de cada toma. Los valores precargados son un ejemplo simulado alrededor de 850 rpm.</div>
+
+        <div class="button-row">
+          <button id="analyze" class="primary" type="button">Graficar y clasificar</button>
+          <button id="clear" type="button">Vaciar RPM</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Criterios</h2>
+        <div class="control">
+          <label for="rpm-threshold">Cambio máx. RPM <span><output id="rpm-threshold-out">10</output>%</span></label>
+          <input id="rpm-threshold" type="range" min="1" max="60" step="1" value="10">
+        </div>
+        <div class="control">
+          <label for="dispersion-threshold">Dispersión máx. <span><output id="dispersion-threshold-out">10</output>%</span></label>
+          <input id="dispersion-threshold" type="range" min="1" max="100" step="1" value="10">
+        </div>
+        <div id="parse-status" class="status-line"></div>
+      </section>
+
+      <section class="card">
+        <h2>Resultado</h2>
+        <div id="result" class="result">
+          <strong>Esperando datos</strong>
+          <p>Al graficar, aquí aparecerá la clasificación del comportamiento.</p>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Lecturas</h2>
+        <div class="metrics">
+          <div class="metric"><span>Grupos</span><strong id="m-groups">0</strong></div>
+          <div class="metric"><span>Tomas</span><strong id="m-trials">0</strong></div>
+          <div class="metric"><span>Mayor cambio</span><strong id="m-change">0%</strong></div>
+          <div class="metric"><span>Mayor dispersión</span><strong id="m-dispersion">0%</strong></div>
+        </div>
+      </section>
+    </aside>
+  </div>
+</section>
+
+<section id="simulation-page" class="page">
+  <div class="layout">
+    <section class="stage" aria-label="Simulación ideal del trompo">
+      <div class="sim-wrap">
+        <canvas id="sim-canvas" width="820" height="520"></canvas>
+      </div>
+    </section>
+
+    <aside class="side">
+      <section class="card">
+        <h2>Modelo del motor</h2>
+        <div class="segmented">
+          <button id="sim-fixed" class="active" type="button">RPM fijas</button>
+          <button id="sim-free" type="button">No fijas</button>
+        </div>
+        <div class="button-row">
+          <button id="sim-toggle" class="primary" type="button">Pausar</button>
+          <button id="sim-reset" type="button">Reiniciar</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Parámetros</h2>
+        <div class="control">
+          <label for="sim-mass">Masa por lado <span><output id="sim-mass-out">4</output> g</span></label>
+          <input id="sim-mass" type="range" min="0" max="20" step="1" value="4">
+        </div>
+        <div class="control">
+          <label for="sim-rpm">RPM base <span><output id="sim-rpm-out">850</output> rpm</span></label>
+          <input id="sim-rpm" type="range" min="250" max="1800" step="25" value="850">
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Lecturas</h2>
+        <div class="metrics">
+          <div class="metric"><span>Masa añadida</span><strong id="sim-total-mass">8 g</strong></div>
+          <div class="metric"><span>Masa sistema</span><strong id="sim-system-mass">41 g</strong></div>
+          <div class="metric"><span>Inercia</span><strong id="sim-I">0.166 g·m²</strong></div>
+          <div class="metric"><span>Velocidad</span><strong id="sim-rpm-read">850 rpm</strong></div>
+          <div class="metric"><span>Momento angular</span><strong id="sim-L">0.0156</strong></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Modelo de inercia</h2>
+        <div class="eq">I₁ ≈ 0.45M<sub>b</sub>R² + ½M<sub>m</sub>r²</div>
+        <div class="eq">I₂ ≈ I₁ + 2m<sub>y</sub>d²</div>
+        <div class="eq">L = Iω</div>
+      </section>
+    </aside>
+  </div>
+</section>
+
+<script>
+const dataCanvas = document.getElementById("data-chart");
+const dataCtx = dataCanvas.getContext("2d");
+const simCanvas = document.getElementById("sim-canvas");
+const simCtx = simCanvas.getContext("2d");
+
+const ui = {
+  tabButtons: [...document.querySelectorAll(".tab-btn")],
+  pages: [...document.querySelectorAll(".page")],
+  analyze: document.getElementById("analyze"),
+  clear: document.getElementById("clear"),
+  threshold: document.getElementById("rpm-threshold"),
+  thresholdOut: document.getElementById("rpm-threshold-out"),
+  dispersionThreshold: document.getElementById("dispersion-threshold"),
+  dispersionOut: document.getElementById("dispersion-threshold-out"),
+  status: document.getElementById("parse-status"),
+  result: document.getElementById("result"),
+  summaryBody: document.getElementById("summary-body"),
+  groups: document.getElementById("m-groups"),
+  trials: document.getElementById("m-trials"),
+  change: document.getElementById("m-change"),
+  dispersion: document.getElementById("m-dispersion"),
+};
+
+const massRows = [
+  { mass: 0, inputs: ["mass-0-a", "mass-0-b", "mass-0-c"] },
+  { mass: 4, inputs: ["mass-4-a", "mass-4-b", "mass-4-c"] },
+  { mass: 8, inputs: ["mass-8-a", "mass-8-b", "mass-8-c"] },
+  { mass: 12, inputs: ["mass-12-a", "mass-12-b", "mass-12-c"] },
+];
+
+function fmt(value, digits = 1) {
+  if (!Number.isFinite(value)) return "—";
+  return value.toLocaleString("es-CO", {
+    maximumFractionDigits: digits,
+    minimumFractionDigits: digits,
+  });
+}
+
+function std(values) {
+  if (values.length < 2) return 0;
+  const mean = values.reduce((a, b) => a + b, 0) / values.length;
+  const variance = values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / (values.length - 1);
+  return Math.sqrt(variance);
+}
+
+function readDataRows() {
+  const rows = [];
+  for (const group of massRows) {
+    for (const id of group.inputs) {
+      const value = Number(document.getElementById(id).value);
+      if (Number.isFinite(value) && value > 0) rows.push({ mass: group.mass, rpm: value });
+    }
+  }
+  return rows;
+}
+
+function summarizeData(rows) {
+  return massRows
+    .map(group => {
+      const values = rows.filter(row => row.mass === group.mass).map(row => row.rpm);
+      if (!values.length) return null;
+      const mean = values.reduce((a, b) => a + b, 0) / values.length;
+      const sd = std(values);
+      return {
+        mass: group.mass,
+        values,
+        n: values.length,
+        mean,
+        sd,
+        dispersion: mean > 0 ? sd / mean * 100 : 0,
+      };
+    })
+    .filter(Boolean);
+}
+
+function classify(summary) {
+  const threshold = Number(ui.threshold.value);
+  const dispersionThreshold = Number(ui.dispersionThreshold.value);
+  const baseline = summary[0]?.mean || 0;
+
+  for (const row of summary) {
+    row.change = baseline > 0 ? (row.mean - baseline) / baseline * 100 : 0;
+    row.absChange = Math.abs(row.change);
+  }
+
+  const maxChange = Math.max(...summary.map(row => row.absChange), 0);
+  const maxDispersion = Math.max(...summary.map(row => row.dispersion), 0);
+  const hasHighDispersion = maxDispersion > dispersionThreshold;
+  const hasSingleTrial = summary.some(row => row.n < 2);
+
+  if (summary.length < 2) {
+    return { type: "warning", title: "Datos insuficientes", text: "Se necesitan al menos dos masas distintas.", maxChange, maxDispersion };
+  }
+
+  if (hasSingleTrial || hasHighDispersion) {
+    return {
+      type: "warning",
+      title: "No concluyente",
+      text: "La dispersión entre tomas es alta o faltan repeticiones. La gráfica sirve como evidencia preliminar, pero no permite una clasificación fuerte.",
+      maxChange,
+      maxDispersion,
+    };
+  }
+
+  if (maxChange <= threshold) {
+    return {
+      type: "good",
+      title: "Compatible con RPM fijas",
+      text: "Las RPM promedio permanecen dentro del margen definido al agregar masa.",
+      maxChange,
+      maxDispersion,
+    };
+  }
+
+  return {
+    type: "bad",
+    title: "No compatible con RPM fijas",
+    text: "Las RPM promedio cambian más que el margen definido al agregar masa.",
+    maxChange,
+    maxDispersion,
+  };
+}
+
+function drawDataChart(summary) {
+  const w = dataCanvas.width;
+  const h = dataCanvas.height;
+  const left = 72;
+  const right = 26;
+  const top = 34;
+  const bottom = 62;
+  const pw = w - left - right;
+  const ph = h - top - bottom;
+
+  dataCtx.clearRect(0, 0, w, h);
+  dataCtx.fillStyle = "#fffaf0";
+  dataCtx.fillRect(0, 0, w, h);
+
+  if (!summary.length) {
+    dataCtx.fillStyle = "#64716c";
+    dataCtx.font = "16px Segoe UI, Arial, sans-serif";
+    dataCtx.textAlign = "center";
+    dataCtx.fillText("Sin datos para graficar", w / 2, h / 2);
+    return;
+  }
+
+  const xMin = Math.min(...summary.map(row => row.mass));
+  const xMax = Math.max(...summary.map(row => row.mass));
+  const yMinRaw = Math.min(...summary.map(row => row.mean - row.sd));
+  const yMaxRaw = Math.max(...summary.map(row => row.mean + row.sd));
+  const yPad = Math.max((yMaxRaw - yMinRaw) * 0.15, yMaxRaw * 0.06, 10);
+  const yMin = Math.max(0, yMinRaw - yPad);
+  const yMax = yMaxRaw + yPad;
+
+  const sx = value => xMax === xMin ? left + pw / 2 : left + (value - xMin) / (xMax - xMin) * pw;
+  const sy = value => top + (yMax - value) / (yMax - yMin) * ph;
+
+  dataCtx.strokeStyle = "#e5dac8";
+  dataCtx.lineWidth = 1;
+  dataCtx.fillStyle = "#64716c";
+  dataCtx.font = "12px Segoe UI, Arial, sans-serif";
+  dataCtx.textAlign = "right";
+  for (let i = 0; i <= 5; i++) {
+    const y = top + i * ph / 5;
+    const value = yMax - i * (yMax - yMin) / 5;
+    dataCtx.beginPath();
+    dataCtx.moveTo(left, y);
+    dataCtx.lineTo(w - right, y);
+    dataCtx.stroke();
+    dataCtx.fillText(fmt(value, 0), left - 10, y + 4);
+  }
+
+  dataCtx.strokeStyle = "#9c927f";
+  dataCtx.lineWidth = 1.5;
+  dataCtx.beginPath();
+  dataCtx.moveTo(left, top);
+  dataCtx.lineTo(left, h - bottom);
+  dataCtx.lineTo(w - right, h - bottom);
+  dataCtx.stroke();
+
+  const baseline = summary[0]?.mean;
+  if (baseline) {
+    const y = sy(baseline);
+    dataCtx.strokeStyle = "#2d6d9f";
+    dataCtx.setLineDash([6, 6]);
+    dataCtx.beginPath();
+    dataCtx.moveTo(left, y);
+    dataCtx.lineTo(w - right, y);
+    dataCtx.stroke();
+    dataCtx.setLineDash([]);
+  }
+
+  dataCtx.strokeStyle = "#147a63";
+  dataCtx.lineWidth = 3;
+  dataCtx.beginPath();
+  summary.forEach((row, index) => {
+    const x = sx(row.mass);
+    const y = sy(row.mean);
+    if (index === 0) dataCtx.moveTo(x, y);
+    else dataCtx.lineTo(x, y);
+  });
+  dataCtx.stroke();
+
+  summary.forEach(row => {
+    const x = sx(row.mass);
+    const y = sy(row.mean);
+    const yTop = sy(row.mean + row.sd);
+    const yBottom = sy(Math.max(0, row.mean - row.sd));
+
+    dataCtx.strokeStyle = "#c27b21";
+    dataCtx.lineWidth = 1.6;
+    dataCtx.beginPath();
+    dataCtx.moveTo(x, yTop);
+    dataCtx.lineTo(x, yBottom);
+    dataCtx.moveTo(x - 7, yTop);
+    dataCtx.lineTo(x + 7, yTop);
+    dataCtx.moveTo(x - 7, yBottom);
+    dataCtx.lineTo(x + 7, yBottom);
+    dataCtx.stroke();
+
+    dataCtx.fillStyle = "#147a63";
+    dataCtx.beginPath();
+    dataCtx.arc(x, y, 5.5, 0, Math.PI * 2);
+    dataCtx.fill();
+
+    dataCtx.fillStyle = "#64716c";
+    dataCtx.font = "12px Segoe UI, Arial, sans-serif";
+    dataCtx.textAlign = "center";
+    dataCtx.fillText(fmt(row.mass, 0), x, h - 33);
+  });
+
+  dataCtx.fillStyle = "#17201e";
+  dataCtx.font = "14px Segoe UI, Arial, sans-serif";
+  dataCtx.textAlign = "center";
+  dataCtx.fillText("Masa total añadida (g)", left + pw / 2, h - 12);
+  dataCtx.save();
+  dataCtx.translate(20, top + ph / 2);
+  dataCtx.rotate(-Math.PI / 2);
+  dataCtx.fillText("RPM promedio", 0, 0);
+  dataCtx.restore();
+}
+
+function renderDataTable(summary) {
+  ui.summaryBody.innerHTML = summary.map(row => `
+    <tr>
+      <td>${fmt(row.mass, 0)} g</td>
+      <td>${row.n}</td>
+      <td>${fmt(row.mean, 1)}</td>
+      <td>${fmt(row.sd, 1)}</td>
+      <td>${fmt(row.change || 0, 1)}%</td>
+      <td>${fmt(row.dispersion, 1)}%</td>
+    </tr>
+  `).join("");
+}
+
+function renderResult(result) {
+  ui.result.className = "result";
+  if (result.type === "warning") ui.result.classList.add("warning");
+  if (result.type === "bad") ui.result.classList.add("bad");
+  ui.result.innerHTML = `<strong>${result.title}</strong><p>${result.text}</p>`;
+  ui.change.textContent = `${fmt(result.maxChange, 1)}%`;
+  ui.dispersion.textContent = `${fmt(result.maxDispersion, 1)}%`;
+}
+
+function analyzeData() {
+  ui.thresholdOut.textContent = ui.threshold.value;
+  ui.dispersionOut.textContent = ui.dispersionThreshold.value;
+  const rows = readDataRows();
+  const summary = summarizeData(rows);
+  const totalTrials = rows.length;
+  const result = classify(summary);
+  drawDataChart(summary);
+  renderDataTable(summary);
+  renderResult(result);
+  ui.groups.textContent = String(summary.length);
+  ui.trials.textContent = String(totalTrials);
+  ui.status.textContent = `${summary.length} grupos y ${totalTrials} tomas procesadas.`;
+}
+
+function clearData() {
+  for (const group of massRows) {
+    for (const id of group.inputs) document.getElementById(id).value = "";
+  }
+  analyzeData();
+}
+
+const simUi = {
+  fixed: document.getElementById("sim-fixed"),
+  free: document.getElementById("sim-free"),
+  toggle: document.getElementById("sim-toggle"),
+  reset: document.getElementById("sim-reset"),
+  mass: document.getElementById("sim-mass"),
+  rpm: document.getElementById("sim-rpm"),
+  massOut: document.getElementById("sim-mass-out"),
+  rpmOut: document.getElementById("sim-rpm-out"),
+  totalMass: document.getElementById("sim-total-mass"),
+  systemMass: document.getElementById("sim-system-mass"),
+  inertia: document.getElementById("sim-I"),
+  rpmRead: document.getElementById("sim-rpm-read"),
+  L: document.getElementById("sim-L"),
+};
+
+const simP = {
+  baseMassG: 33,
+  bodyMass: 0.033,
+  bodyRadius: 0.055,
+  handleMass: 0.000,
+  handleRadius: 0.009,
+  yellowDistance: 0.045,
+  bodyFactor: 0.45,
+  maxMassG: 20,
+};
+
+const simS = {
+  model: "fixed",
+  running: true,
+  angle: 0,
+  lastTs: null,
+};
+
+function simInertiaForMass(massPerSideG) {
+  const yellowMass = massPerSideG / 1000;
+  const bodyI = simP.bodyFactor * simP.bodyMass * simP.bodyRadius ** 2;
+  const handleI = 0.5 * simP.handleMass * simP.handleRadius ** 2;
+  const yellowI = 2 * yellowMass * simP.yellowDistance ** 2;
+  return bodyI + handleI + yellowI;
+}
+
+function simOmegaRef() {
+  return Number(simUi.rpm.value) * Math.PI * 2 / 60;
+}
+
+function simOmega() {
+  const m = Number(simUi.mass.value);
+  const base = simOmegaRef();
+  if (simS.model === "fixed") return base;
+  return base * simInertiaForMass(0) / simInertiaForMass(m);
+}
+
+function setSimModel(model) {
+  simS.model = model;
+  simUi.fixed.classList.toggle("active", model === "fixed");
+  simUi.free.classList.toggle("active", model === "free");
+  drawSim();
+}
+
+function updateSimReadouts() {
+  const m = Number(simUi.mass.value);
+  const omega = simOmega();
+  const rpm = omega * 60 / (Math.PI * 2);
+  const I = simInertiaForMass(m);
+  simUi.massOut.textContent = m.toFixed(0);
+  simUi.rpmOut.textContent = Number(simUi.rpm.value).toFixed(0);
+  simUi.totalMass.textContent = `${(2 * m).toFixed(0)} g`;
+  simUi.systemMass.textContent = `${fmt(simP.baseMassG + 2 * m, 0)} g`;
+  simUi.inertia.textContent = `${fmt(I * 1000, 3)} g·m²`;
+  simUi.rpmRead.textContent = `${fmt(rpm, 0)} rpm`;
+  simUi.L.textContent = fmt(I * omega, 4);
+}
+
+function drawSim() {
+  updateSimReadouts();
+  const w = simCanvas.width;
+  const h = simCanvas.height;
+  const cx = w * 0.42;
+  const cy = h * 0.53;
+  const diskR = 98;
+  const m = Number(simUi.mass.value);
+  const massT = m / simP.maxMassG;
+  const omega = simOmega();
+  const rpm = omega * 60 / (Math.PI * 2);
+
+  simCtx.clearRect(0, 0, w, h);
+  const bg = simCtx.createLinearGradient(0, 0, 0, h);
+  bg.addColorStop(0, "#192420");
+  bg.addColorStop(1, "#0d1211");
+  simCtx.fillStyle = bg;
+  simCtx.fillRect(0, 0, w, h);
+
+  simCtx.strokeStyle = "rgba(255,250,240,0.08)";
+  for (let x = 24; x < w; x += 34) {
+    simCtx.beginPath();
+    simCtx.moveTo(x, 0);
+    simCtx.lineTo(x, h);
+    simCtx.stroke();
+  }
+  for (let y = 24; y < h; y += 34) {
+    simCtx.beginPath();
+    simCtx.moveTo(0, y);
+    simCtx.lineTo(w, y);
+    simCtx.stroke();
+  }
+
+  simCtx.save();
+  simCtx.translate(cx, cy + diskR + 28);
+  simCtx.scale(1, 0.18);
+  const shadow = simCtx.createRadialGradient(0, 0, 8, 0, 0, diskR * 1.7);
+  shadow.addColorStop(0, "rgba(27,167,131,0.28)");
+  shadow.addColorStop(1, "rgba(0,0,0,0)");
+  simCtx.fillStyle = shadow;
+  simCtx.beginPath();
+  simCtx.arc(0, 0, diskR * 1.7, 0, Math.PI * 2);
+  simCtx.fill();
+  simCtx.restore();
+
+  simCtx.save();
+  simCtx.translate(cx, cy);
+  simCtx.rotate(simS.angle);
+  const disk = simCtx.createRadialGradient(-24, -28, 8, 0, 0, diskR);
+  disk.addColorStop(0, "#dbfff3");
+  disk.addColorStop(0.22, "#1ba783");
+  disk.addColorStop(0.72, "#185447");
+  disk.addColorStop(1, "#0b1715");
+  simCtx.fillStyle = disk;
+  simCtx.beginPath();
+  simCtx.arc(0, 0, diskR, 0, Math.PI * 2);
+  simCtx.fill();
+  simCtx.strokeStyle = "#b9d8d0";
+  simCtx.lineWidth = 3;
+  simCtx.stroke();
+
+  simCtx.strokeStyle = "rgba(255,250,240,0.23)";
+  simCtx.lineWidth = 1;
+  for (let r = 24; r < diskR; r += 18) {
+    simCtx.beginPath();
+    simCtx.arc(0, 0, r, 0, Math.PI * 2);
+    simCtx.stroke();
+  }
+
+  for (const side of [-1, 1]) {
+    simCtx.save();
+    simCtx.translate(side * 76, -8);
+    simCtx.rotate(side * 0.08);
+    const blockW = 34 + massT * 26;
+    const blockH = 28 + massT * 12;
+    const x = -blockW / 2;
+    const y = -blockH / 2;
+    const pad = simCtx.createLinearGradient(x, y, x, y + blockH);
+    pad.addColorStop(0, "#fff174");
+    pad.addColorStop(0.45, "#d5c829");
+    pad.addColorStop(1, "#8f8615");
+    simCtx.fillStyle = pad;
+    simCtx.beginPath();
+    simCtx.roundRect(x, y, blockW, blockH, 9);
+    simCtx.fill();
+    simCtx.strokeStyle = "#f7e978";
+    simCtx.lineWidth = 2;
+    simCtx.stroke();
+    simCtx.fillStyle = "rgba(72,68,12,0.52)";
+    simCtx.font = "700 15px Segoe UI, sans-serif";
+    simCtx.textAlign = "center";
+    simCtx.textBaseline = "middle";
+    simCtx.fillText(String(Math.round(m)), 0, 1);
+    simCtx.restore();
+  }
+  simCtx.restore();
+
+  simCtx.save();
+  simCtx.translate(cx, cy);
+  const hub = simCtx.createRadialGradient(-7, -8, 3, 0, 0, 31);
+  hub.addColorStop(0, "#f4f1e8");
+  hub.addColorStop(1, "#2c3431");
+  simCtx.fillStyle = hub;
+  simCtx.beginPath();
+  simCtx.arc(0, 0, 31, 0, Math.PI * 2);
+  simCtx.fill();
+  simCtx.strokeStyle = "#0c1110";
+  simCtx.lineWidth = 3;
+  simCtx.stroke();
+  simCtx.restore();
+
+  drawGauge(w * 0.76, h * 0.52, rpm);
+
+  simCtx.fillStyle = "rgba(255,250,240,0.90)";
+  simCtx.font = "700 17px Segoe UI, sans-serif";
+  simCtx.fillText(simS.model === "fixed" ? "Modelo: RPM fijas" : "Modelo: no regula RPM", 24, 36);
+  simCtx.font = "500 13px Segoe UI, sans-serif";
+  simCtx.fillStyle = "rgba(255,250,240,0.68)";
+  simCtx.fillText(`Dos masas opuestas: ${m.toFixed(0)} g por lado`, 24, 60);
+  simCtx.fillText("Distancia media al eje = 4.5 cm", 24, 81);
+  simCtx.fillText("Masa del trompo sin piezas = 33 g", 24, 102);
+}
+
+function drawGauge(x, y, rpm) {
+  const max = Math.max(Number(simUi.rpm.value), 1200);
+  const pct = Math.min(1, rpm / max);
+  simCtx.save();
+  simCtx.translate(x, y);
+  simCtx.strokeStyle = "rgba(255,250,240,0.24)";
+  simCtx.lineWidth = 16;
+  simCtx.beginPath();
+  simCtx.arc(0, 0, 96, Math.PI * 0.75, Math.PI * 2.25);
+  simCtx.stroke();
+  simCtx.strokeStyle = simS.model === "fixed" ? "#1ba783" : "#c27b21";
+  simCtx.beginPath();
+  simCtx.arc(0, 0, 96, Math.PI * 0.75, Math.PI * (0.75 + 1.5 * pct));
+  simCtx.stroke();
+  simCtx.fillStyle = "#fffaf0";
+  simCtx.textAlign = "center";
+  simCtx.font = "700 36px Segoe UI, sans-serif";
+  simCtx.fillText(Math.round(rpm), 0, 8);
+  simCtx.font = "600 14px Segoe UI, sans-serif";
+  simCtx.fillStyle = "rgba(255,250,240,0.72)";
+  simCtx.fillText("rpm", 0, 34);
+  simCtx.restore();
+}
+
+function simFrame(ts) {
+  if (simS.lastTs === null) simS.lastTs = ts;
+  const dt = Math.min((ts - simS.lastTs) / 1000, 0.04);
+  simS.lastTs = ts;
+  if (simS.running) simS.angle += simOmega() * dt;
+  drawSim();
+  requestAnimationFrame(simFrame);
+}
+
+ui.tabButtons.forEach(button => {
+  button.addEventListener("click", () => {
+    ui.tabButtons.forEach(btn => btn.classList.remove("active"));
+    ui.pages.forEach(page => page.classList.remove("active"));
+    button.classList.add("active");
+    document.getElementById(button.dataset.page).classList.add("active");
+    analyzeData();
+    drawSim();
+  });
+});
+
+ui.analyze.addEventListener("click", analyzeData);
+ui.clear.addEventListener("click", clearData);
+ui.threshold.addEventListener("input", analyzeData);
+ui.dispersionThreshold.addEventListener("input", analyzeData);
+
+for (const group of massRows) {
+  for (const id of group.inputs) {
+    document.getElementById(id).addEventListener("input", analyzeData);
+  }
+}
+
+simUi.fixed.addEventListener("click", () => setSimModel("fixed"));
+simUi.free.addEventListener("click", () => setSimModel("free"));
+simUi.toggle.addEventListener("click", () => {
+  simS.running = !simS.running;
+  simUi.toggle.textContent = simS.running ? "Pausar" : "Continuar";
+  simUi.toggle.classList.toggle("primary", simS.running);
+});
+simUi.reset.addEventListener("click", () => {
+  simS.angle = 0;
+  simS.lastTs = null;
+});
+simUi.mass.addEventListener("input", drawSim);
+simUi.rpm.addEventListener("input", drawSim);
+
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function(x, y, width, height, radius) {
+    const r = Math.min(radius, Math.abs(width) / 2, Math.abs(height) / 2);
+    this.beginPath();
+    this.moveTo(x + r, y);
+    this.arcTo(x + width, y, x + width, y + height, r);
+    this.arcTo(x + width, y + height, x, y + height, r);
+    this.arcTo(x, y + height, x, y, r);
+    this.arcTo(x, y, x + width, y, r);
+    this.closePath();
+    return this;
+  };
+}
+
+analyzeData();
+requestAnimationFrame(simFrame);
+</script>
+</body>
+</html>
